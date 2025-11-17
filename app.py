@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, session
 from flask_cors import CORS
 from dotenv import load_dotenv
+import os
 
 # Load environment variables
 load_dotenv()
@@ -8,10 +9,25 @@ load_dotenv()
 # Create Flask app
 app = Flask(__name__)
 
-# Enable CORS (allows React to connect)
-CORS(app)
+# Secret key for sessions
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Basic test route
+# Enable CORS with credentials support (for sessions)
+CORS(app, supports_credentials=True, origins=['http://localhost:5173', 'http://localhost:3000'])
+
+# Import blueprints
+from routes.projects import projects_bp
+from routes.applications import applications_bp
+from routes.donations import donations_bp
+from routes.auth import auth_bp
+
+# Register blueprints
+app.register_blueprint(projects_bp)
+app.register_blueprint(applications_bp)
+app.register_blueprint(donations_bp)
+app.register_blueprint(auth_bp)
+
+# Basic test routes
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Simple endpoint to test if API is running"""
@@ -20,7 +36,6 @@ def health_check():
         "message": "Youths4Change API is running!"
     })
 
-# Test database route
 @app.route('/api/test-db', methods=['GET'])
 def test_db():
     """Test database connection"""
@@ -39,6 +54,15 @@ def test_db():
             "success": False,
             "error": str(e)
         }), 500
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint not found"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({"error": "Internal server error"}), 500
 
 # Run the app
 if __name__ == '__main__':
