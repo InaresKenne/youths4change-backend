@@ -69,7 +69,7 @@ def create_donation():
                 }), 400
         
         # Validate email
-        email_pattern = r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$'
+        email_pattern = r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$'
         if not re.match(email_pattern, data['email']):
             return jsonify({"error": "Invalid email format"}), 400
         
@@ -79,7 +79,7 @@ def create_donation():
             return jsonify({"error": "Minimum donation is $5"}), 400
         
         # Validate name
-        name_pattern = r'^[a-zA-Z\\s]{2,50}$'
+        name_pattern = r'^[a-zA-Z\s]{2,50}$'
         if not re.match(name_pattern, data['donor_name']):
             return jsonify({"error": "Invalid donor name format"}), 400
         

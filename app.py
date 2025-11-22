@@ -2,6 +2,11 @@ from flask import Flask, jsonify, session
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+from routes.contact import contact_bp
+from routes.settings import settings_bp
+
+
+
 
 # Load environment variables
 load_dotenv()
@@ -20,12 +25,17 @@ from routes.projects import projects_bp
 from routes.applications import applications_bp
 from routes.donations import donations_bp
 from routes.auth import auth_bp
+from routes.analytics import analytics_bp
+
 
 # Register blueprints
 app.register_blueprint(projects_bp)
 app.register_blueprint(applications_bp)
 app.register_blueprint(donations_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(analytics_bp)
+app.register_blueprint(contact_bp)
+app.register_blueprint(settings_bp)
 
 # Basic test routes
 @app.route('/api/health', methods=['GET'])
