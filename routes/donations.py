@@ -8,17 +8,17 @@ donations_bp = Blueprint('donations', __name__)
 # GET ALL DONATIONS (with filters)
 # ============================================
 @donations_bp.route('/api/donations', methods=['GET'])
-def get_all_donations():
-    """
-    Get all donations, optionally filtered
-    Query params: ?project_id=1&country=Ghana
-    """
+def get_donations():
+    """Get all donations with optional filters"""
     try:
-        project_id = request.args.get('project_id', '')
-        country = request.args.get('country', '')
+        project_id = request.args.get('project_id')
+        country = request.args.get('country')
+        search = request.args.get('search')
         
         query = """
-            SELECT d.*, p.name as project_name
+            SELECT 
+                d.*,
+                p.name as project_name
             FROM donations d
             LEFT JOIN projects p ON d.project_id = p.id
             WHERE 1=1
@@ -33,22 +33,25 @@ def get_all_donations():
             query += " AND d.country = %s"
             params.append(country)
         
+        if search:
+            query += " AND (d.donor_name ILIKE %s OR d.email ILIKE %s)"
+            params.extend([f'%{search}%', f'%{search}%'])
+        
         query += " ORDER BY d.donation_date DESC"
         
         donations = execute_query(query, tuple(params) if params else None)
+        
+        # Convert Decimal to float for JSON serialization
+        for donation in donations:
+            donation['amount'] = float(donation['amount'])
         
         return jsonify({
             "success": True,
             "data": donations,
             "count": len(donations)
         })
-    
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
+        return jsonify({"success": False, "error": str(e)}), 500
 # ============================================
 # CREATE DONATION (Mock)
 # ============================================
@@ -117,6 +120,101 @@ def create_donation():
     
     except ValueError:
         return jsonify({"error": "Invalid amount format"}), 400
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+# ============================================
+# GET DONATION STATISTICS (Admin)
+# ============================================
+@donations_bp.route('/api/donations/stats', methods=['GET'])
+def get_donation_stats():
+    """Get donation statistics for admin dashboard"""
+    try:
+        # Total donations
+        total_query = """
+            SELECT 
+                COUNT(*) as total_count,
+                COALESCE(SUM(amount), 0) as total_amount
+            FROM donations
+        """
+        totals = execute_query(total_query)[0]
+        
+        # By country
+        country_query = """
+            SELECT 
+                country,
+                COUNT(*) as count,
+                COALESCE(SUM(amount), 0) as amount
+            FROM donations
+            GROUP BY country
+            ORDER BY amount DESC
+        """
+        by_country = execute_query(country_query)
+        
+        # By project
+        project_query = """
+            SELECT 
+                d.project_id,
+                p.name as project_name,
+                COUNT(*) as count,
+                COALESCE(SUM(d.amount), 0) as amount
+            FROM donations d
+            LEFT JOIN projects p ON d.project_id = p.id
+            GROUP BY d.project_id, p.name
+            ORDER BY amount DESC
+        """
+        by_project = execute_query(project_query)
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "total_count": totals['total_count'],
+                "total_amount": float(totals['total_amount']),
+                "by_country": [
+                    {"country": r['country'], "count": r['count'], "amount": float(r['amount'])}
+                    for r in by_country
+                ],
+                "by_project": [
+                    {"project_id": r['project_id'], "project_name": r['project_name'], "count": r['count'], "amount": float(r['amount'])}
+                    for r in by_project
+                ]
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ============================================
+# GET SINGLE DONATION BY ID
+# ============================================
+@donations_bp.route('/api/donations/<int:donation_id>', methods=['GET'])
+def get_donation(donation_id):
+    """Get a single donation by ID"""
+    try:
+        query = """
+            SELECT 
+                d.*,
+                p.name as project_name
+            FROM donations d
+            LEFT JOIN projects p ON d.project_id = p.id
+            WHERE d.id = %s
+        """
+        donations = execute_query(query, (donation_id,))
+        
+        if not donations or len(donations) == 0:
+            return jsonify({
+                "success": False,
+                "error": "Donation not found"
+            }), 404
+        
+        donation = donations[0]
+        donation['amount'] = float(donation['amount'])
+        
+        return jsonify({
+            "success": True,
+            "data": donation
+        })
     except Exception as e:
         return jsonify({
             "success": False,

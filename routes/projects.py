@@ -97,7 +97,7 @@ def create_project():
             return jsonify({"error": "Description is required"}), 400
         
         # Regex validation for name (5-100 chars, alphanumeric, spaces, hyphens, ampersands)
-        name_pattern = r'^[a-zA-Z0-9\\s\\-&]{5,100}$'
+        name_pattern = r'^[a-zA-Z0-9\s&-]{5,100}$'
         if not re.match(name_pattern, data['name']):
             return jsonify({
                 "error": "Invalid project name format. Must be 5-100 characters, alphanumeric, spaces, hyphens, and ampersands only."
