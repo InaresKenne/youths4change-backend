@@ -156,6 +156,16 @@ def register():
 # ============================================
 @auth_bp.route('/api/auth/profile', methods=['GET'])
 def get_profile():
+
+
+    # DEBUG: Print session contents
+    print("=== DEBUG SESSION ===")
+    print(f"Session contents: {dict(session)}")
+    print(f"admin_id in session: {'admin_id' in session}")
+    print("=====================")
+    
+
+    
     """Get current admin's profile"""
     if 'admin_id' not in session:
         return jsonify({"success": False, "error": "Not authenticated"}), 401

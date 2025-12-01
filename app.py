@@ -18,10 +18,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # ADD THESE SESSION COOKIE SETTINGS ↓↓↓
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
 
 # Enable CORS with credentials support (for sessions)
@@ -43,6 +44,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(analytics_bp)
 app.register_blueprint(contact_bp)
 app.register_blueprint(settings_bp)
+
+
 
 # Basic test routes
 @app.route('/api/health', methods=['GET'])
