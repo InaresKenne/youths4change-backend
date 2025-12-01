@@ -37,7 +37,10 @@ def login():
         
         # Check if password matches
         if bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
+
+            session.permanent = True
             # Create session
+
             session['admin_id'] = admin['id']
             session['username'] = admin['username']
             
@@ -147,3 +150,147 @@ def register():
             "success": False,
             "error": str(e)
         }), 500
+    
+    # ============================================
+# GET ADMIN PROFILE
+# ============================================
+@auth_bp.route('/api/auth/profile', methods=['GET'])
+def get_profile():
+    """Get current admin's profile"""
+    if 'admin_id' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    try:
+        query = """
+            SELECT id, username, email, full_name, role, created_at 
+            FROM admins WHERE id = %s
+        """
+        admins = execute_query(query, (session['admin_id'],))
+        
+        if not admins or len(admins) == 0:
+            return jsonify({"success": False, "error": "Admin not found"}), 404
+        
+        admin = admins[0]
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "id": admin['id'],
+                "username": admin['username'],
+                "email": admin['email'],
+                "full_name": admin['full_name'],
+                "role": admin['role'],
+                "created_at": admin['created_at'].isoformat() if admin['created_at'] else None
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================
+# UPDATE ADMIN PROFILE
+# ============================================
+@auth_bp.route('/api/auth/profile', methods=['PUT'])
+def update_profile():
+    """Update current admin's profile"""
+    if 'admin_id' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    try:
+        data = request.get_json()
+        
+        full_name = data.get('full_name')
+        email = data.get('email')
+        
+        if not full_name:
+            return jsonify({"success": False, "error": "Full name is required"}), 400
+        
+        if not email:
+            return jsonify({"success": False, "error": "Email is required"}), 400
+        
+        # Check if email is already used by another admin
+        existing = execute_query(
+            "SELECT id FROM admins WHERE email = %s AND id != %s",
+            (email, session['admin_id'])
+        )
+        if existing and len(existing) > 0:
+            return jsonify({"success": False, "error": "Email already in use"}), 400
+        
+        # Update profile
+        query = """
+            UPDATE admins 
+            SET full_name = %s, email = %s
+            WHERE id = %s
+        """
+        execute_query(query, (full_name, email, session['admin_id']), fetch=False)
+        
+        # Update session
+        session['full_name'] = full_name
+        session['email'] = email
+        
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================
+# CHANGE PASSWORD
+# ============================================
+@auth_bp.route('/api/auth/password', methods=['PUT'])
+def change_password():
+    """Change current admin's password"""
+    if 'admin_id' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    try:
+        data = request.get_json()
+        
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        # Validate inputs
+        if not current_password:
+            return jsonify({"success": False, "error": "Current password is required"}), 400
+        
+        if not new_password:
+            return jsonify({"success": False, "error": "New password is required"}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({"success": False, "error": "New password must be at least 6 characters"}), 400
+        
+        if new_password != confirm_password:
+            return jsonify({"success": False, "error": "Passwords do not match"}), 400
+        
+        # Get current admin
+        admin = execute_query(
+            "SELECT password_hash FROM admins WHERE id = %s",
+            (session['admin_id'],)
+        )
+        
+        if not admin or len(admin) == 0:
+            return jsonify({"success": False, "error": "Admin not found"}), 404
+        
+        # Verify current password
+        if not bcrypt.checkpw(current_password.encode('utf-8'), admin[0]['password_hash'].encode('utf-8')):
+            return jsonify({"success": False, "error": "Current password is incorrect"}), 400
+        
+        # Hash new password
+        new_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        # Update password
+        execute_query(
+            "UPDATE admins SET password_hash = %s WHERE id = %s",
+            (new_hash, session['admin_id']),
+            fetch=False
+        )
+        
+        return jsonify({
+            "success": True,
+            "message": "Password changed successfully"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500

@@ -17,6 +17,13 @@ app = Flask(__name__)
 # Secret key for sessions
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# ADD THESE SESSION COOKIE SETTINGS ↓↓↓
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # Set True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
+
+
 # Enable CORS with credentials support (for sessions)
 CORS(app, supports_credentials=True, origins=['http://localhost:5173', 'http://localhost:3000'])
 
