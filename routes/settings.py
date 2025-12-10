@@ -144,6 +144,62 @@ def update_page_content(page_name):
             return jsonify({"success": False, "error": "No data provided"}), 400
         
         # Update each section provided
+        for section_key, section_data in data.items():
+            # Skip if value is None
+            if section_data is None:
+                continue
+            
+            # section_data can be either:
+            # - A string (text content)
+            # - A dict with 'cloudinary_public_id' key (image content)
+            
+            content_value = None
+            cloudinary_public_id = None
+            
+            if isinstance(section_data, dict) and 'cloudinary_public_id' in section_data:
+                # This is image content
+                cloudinary_public_id = section_data['cloudinary_public_id']
+            else:
+                # This is text content
+                content_value = section_data
+            
+            # Check if exists
+            existing = execute_query(
+                "SELECT id FROM page_content WHERE page_name = %s AND section_key = %s",
+                (page_name, section_key)
+            )
+            
+            if existing and len(existing) > 0:
+                # Update
+                query = """
+                    UPDATE page_content 
+                    SET content_value = %s, cloudinary_public_id = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE page_name = %s AND section_key = %s
+                """
+                execute_query(query, (content_value, cloudinary_public_id, page_name, section_key), fetch=False)
+            else:
+                # Insert
+                query = """
+                    INSERT INTO page_content (page_name, section_key, content_value, cloudinary_public_id)
+                    VALUES (%s, %s, %s, %s)
+                """
+                execute_query(query, (page_name, section_key, content_value, cloudinary_public_id), fetch=False)
+        
+        return jsonify({
+            "success": True,
+            "message": "Page content updated successfully"
+        })
+    except Exception as e:
+        print(f"Error updating page content: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+    """Update content for a specific page"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+        
+        # Update each section provided
         for section_key, content_value in data.items():
             # Skip if value is None
             if content_value is None:

@@ -112,11 +112,11 @@ def create_project():
         
         # Insert into database
         query = """
-            INSERT INTO projects (name, description, country, beneficiaries_count, budget, status, image_url)
+            INSERT INTO projects (name, description, country, beneficiaries_count, budget, status, cloudinary_public_id)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
-        
+
         result = execute_query(query, (
             data['name'],
             data['description'],
@@ -124,7 +124,7 @@ def create_project():
             data.get('beneficiaries_count', 0),
             data.get('budget', 0),
             data.get('status', 'active'),
-            data.get('image_url', '')
+            data.get('cloudinary_public_id')  
         ), fetch=False)
         
         new_id = result['id']
@@ -169,14 +169,15 @@ def update_project(id):
                 }), 400
         
         # Update database
+# Update database
         query = """
             UPDATE projects 
             SET name = %s, description = %s, country = %s, 
                 beneficiaries_count = %s, budget = %s, status = %s, 
-                image_url = %s, updated_at = CURRENT_TIMESTAMP
+                cloudinary_public_id = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         """
-        
+
         affected = execute_query(query, (
             data['name'],
             data['description'],
@@ -184,7 +185,7 @@ def update_project(id):
             data['beneficiaries_count'],
             data['budget'],
             data['status'],
-            data.get('image_url', ''),
+            data.get('cloudinary_public_id'),  # Can be None/null
             id
         ), fetch=False)
         
