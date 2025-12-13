@@ -26,7 +26,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
 
 # Enable CORS with credentials support (for sessions)
-CORS(app, supports_credentials=True, origins=['http://localhost:5173', 'http://localhost:3000'])
+CORS(app, supports_credentials=True, origins=['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5173'])
 
 # Import blueprints
 from routes.projects import projects_bp
@@ -34,6 +34,7 @@ from routes.applications import applications_bp
 from routes.donations import donations_bp
 from routes.auth import auth_bp
 from routes.analytics import analytics_bp
+from routes.team import team_bp
 
 
 # Register blueprints
@@ -44,6 +45,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(analytics_bp)
 app.register_blueprint(contact_bp)
 app.register_blueprint(settings_bp)
+app.register_blueprint(team_bp)
 
 
 
@@ -86,4 +88,4 @@ def internal_error(error):
 
 # Run the app
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)

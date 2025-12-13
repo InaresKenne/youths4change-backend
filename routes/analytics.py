@@ -5,50 +5,51 @@ analytics_bp = Blueprint('analytics', __name__)
 
 @analytics_bp.route('/api/analytics/overview', methods=['GET'])
 def get_overview():
-    """Get overall statistics - calculated from real data"""
+    """Get overall statistics - calculated from real data in a single optimized query"""
     try:
-        # Count active projects
-        total_projects = execute_query(
-            "SELECT COUNT(*) as count FROM projects WHERE status != 'deleted'"
-        )[0]['count']
+        # Single query to get all statistics at once using CTEs
+        query = """
+            WITH project_stats AS (
+                SELECT 
+                    COUNT(*) FILTER (WHERE status != 'deleted') as total_projects,
+                    COUNT(*) FILTER (WHERE status = 'active') as active_projects,
+                    COALESCE(SUM(beneficiaries_count) FILTER (WHERE status = 'active'), 0) as total_beneficiaries,
+                    COUNT(DISTINCT country) FILTER (WHERE status != 'deleted') as countries_count
+                FROM projects
+            ),
+            application_stats AS (
+                SELECT 
+                    COUNT(*) as total_applications,
+                    COUNT(*) FILTER (WHERE status = 'approved') as approved_applications
+                FROM applications
+            ),
+            donation_stats AS (
+                SELECT COALESCE(SUM(amount), 0) as total_donations
+                FROM donations
+            )
+            SELECT 
+                p.total_projects,
+                p.active_projects,
+                p.total_beneficiaries,
+                p.countries_count,
+                a.total_applications,
+                a.approved_applications,
+                d.total_donations
+            FROM project_stats p, application_stats a, donation_stats d
+        """
         
-        # Count all applications
-        total_applications = execute_query(
-            "SELECT COUNT(*) as count FROM applications"
-        )[0]['count']
-        
-        # Count approved applications (young leaders)
-        approved_applications = execute_query(
-            "SELECT COUNT(*) as count FROM applications WHERE status = 'approved'"
-        )[0]['count']
-        
-        # Sum total donations
-        total_donations = execute_query(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM donations"
-        )[0]['total']
-        
-        # Sum beneficiaries from active projects
-        total_beneficiaries = execute_query(
-            "SELECT COALESCE(SUM(beneficiaries_count), 0) as total FROM projects WHERE status = 'active'"
-        )[0]['total']
-        
-        # Count distinct countries we operate in
-        countries_count = execute_query(
-            "SELECT COUNT(DISTINCT country) as count FROM projects WHERE status != 'deleted'"
-        )[0]['count']
+        result = execute_query(query)[0]
         
         return jsonify({
             "success": True,
             "data": {
-                "total_projects": total_projects,
-                "active_projects": execute_query(
-                    "SELECT COUNT(*) as count FROM projects WHERE status = 'active'"
-                )[0]['count'],
-                "total_applications": total_applications,
-                "approved_applications": approved_applications,
-                "total_donations": float(total_donations),
-                "total_beneficiaries": total_beneficiaries,
-                "countries_count": countries_count,
+                "total_projects": result['total_projects'],
+                "active_projects": result['active_projects'],
+                "total_applications": result['total_applications'],
+                "approved_applications": result['approved_applications'],
+                "total_donations": float(result['total_donations']),
+                "total_beneficiaries": result['total_beneficiaries'],
+                "countries_count": result['countries_count'],
             }
         })
     except Exception as e:
@@ -74,6 +75,27 @@ def projects_by_country():
         return jsonify({
             "success": True,
             "data": data
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@analytics_bp.route('/api/analytics/countries', methods=['GET'])
+def get_countries():
+    """Get list of all active countries from projects"""
+    try:
+        query = """
+            SELECT DISTINCT country 
+            FROM projects 
+            WHERE status != 'deleted' AND country IS NOT NULL AND country != ''
+            ORDER BY country ASC
+        """
+        data = execute_query(query)
+        countries = [row['country'] for row in data]
+        
+        return jsonify({
+            "success": True,
+            "data": countries
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

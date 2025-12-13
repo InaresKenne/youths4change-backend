@@ -221,6 +221,30 @@ def delete_social_media(social_id):
 
 
 # ============================================
+# GET COUNTRIES FROM REGIONAL OFFICES
+# ============================================
+@contact_bp.route('/api/regional-offices/countries', methods=['GET'])
+def get_office_countries():
+    """Get list of all countries from regional offices"""
+    try:
+        query = """
+            SELECT DISTINCT country
+            FROM regional_offices
+            WHERE is_active = TRUE AND country IS NOT NULL AND country != ''
+            ORDER BY country ASC
+        """
+        data = execute_query(query)
+        countries = [row['country'] for row in data]
+        
+        return jsonify({
+            "success": True,
+            "data": countries
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================
 # GET REGIONAL OFFICES
 # ============================================
 @contact_bp.route('/api/regional-offices', methods=['GET'])

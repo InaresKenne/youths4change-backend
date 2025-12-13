@@ -154,7 +154,7 @@ def update_project(id):
         
         # Validate name if provided
         if data.get('name'):
-            name_pattern = r'^[a-zA-Z0-9\\s\\-&]{5,100}$'
+            name_pattern = r'^[a-zA-Z0-9\s&-]{5,100}$'
             if not re.match(name_pattern, data['name']):
                 return jsonify({
                     "error": "Invalid project name format"
@@ -169,7 +169,6 @@ def update_project(id):
                 }), 400
         
         # Update database
-# Update database
         query = """
             UPDATE projects 
             SET name = %s, description = %s, country = %s, 
@@ -179,12 +178,12 @@ def update_project(id):
         """
 
         affected = execute_query(query, (
-            data['name'],
-            data['description'],
-            data['country'],
-            data['beneficiaries_count'],
-            data['budget'],
-            data['status'],
+            data.get('name'),
+            data.get('description'),
+            data.get('country'),
+            data.get('beneficiaries_count'),
+            data.get('budget'),
+            data.get('status'),
             data.get('cloudinary_public_id'),  # Can be None/null
             id
         ), fetch=False)

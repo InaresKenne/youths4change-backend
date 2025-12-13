@@ -24,6 +24,9 @@ def get_db_connection():
             cursor_factory=RealDictCursor  # Returns results as dictionaries
         )
         
+        # Set autocommit to False (explicit transactions)
+        conn.autocommit = False
+        
         return conn
     
     except Exception as e:
@@ -43,32 +46,50 @@ def execute_query(query, params=None, fetch=True):
         List of dictionaries for SELECT queries
         Number of affected rows for INSERT/UPDATE/DELETE
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
+    
+    conn = None
+    cursor = None
     
     try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
         cursor.execute(query, params or ())
         
         if fetch:
             # SELECT query - return results
             result = cursor.fetchall()
+            cursor.close()
             conn.close()
             return result
         else:
             # INSERT/UPDATE/DELETE - commit and return affected rows
-            conn.commit()
-            affected_rows = cursor.rowcount
             
-            # For INSERT with RETURNING, fetch the returned data
+            # For INSERT with RETURNING, fetch the returned data BEFORE commit
             if query.strip().upper().startswith('INSERT') and 'RETURNING' in query.upper():
                 result = cursor.fetchone()
+                print(f"DEBUG: About to commit INSERT, result: {result}")
+                conn.commit()  # Commit the transaction
+                print(f"DEBUG: Commit completed, status: {conn.get_transaction_status()}")
+                cursor.close()
                 conn.close()
-                return result
+                # Return as a list to maintain consistency with other queries
+                return [result] if result else []
             
+            # For other non-fetch queries
+            conn.commit()
+            affected_rows = cursor.rowcount
+            cursor.close()
             conn.close()
             return affected_rows
     
     except Exception as e:
-        conn.rollback()
-        conn.close()
+        print(f"DEBUG: Exception in execute_query: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        if cursor:
+            cursor.close()
         raise e
