@@ -109,7 +109,7 @@ def create_donation():
             data['country']
         ), fetch=False)
         
-        new_id = result['id']
+        new_id = result[0]['id'] if result else None
         
         return jsonify({
             "success": True,

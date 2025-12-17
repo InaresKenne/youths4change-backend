@@ -128,7 +128,7 @@ def create_application():
             data['motivation']
         ), fetch=False)
         
-        new_id = result['id']
+        new_id = result[0]['id'] if result else None
         
         return jsonify({
             "success": True,

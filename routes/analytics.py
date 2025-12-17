@@ -26,6 +26,11 @@ def get_overview():
             donation_stats AS (
                 SELECT COALESCE(SUM(amount), 0) as total_donations
                 FROM donations
+            ),
+            team_stats AS (
+                SELECT 
+                    COUNT(*) FILTER (WHERE is_active = true) as total_team_members
+                FROM team_members
             )
             SELECT 
                 p.total_projects,
@@ -34,8 +39,9 @@ def get_overview():
                 p.countries_count,
                 a.total_applications,
                 a.approved_applications,
-                d.total_donations
-            FROM project_stats p, application_stats a, donation_stats d
+                d.total_donations,
+                t.total_team_members
+            FROM project_stats p, application_stats a, donation_stats d, team_stats t
         """
         
         result = execute_query(query)[0]
@@ -50,6 +56,7 @@ def get_overview():
                 "total_donations": float(result['total_donations']),
                 "total_beneficiaries": result['total_beneficiaries'],
                 "countries_count": result['countries_count'],
+                "total_team_members": result['total_team_members'],
             }
         })
     except Exception as e:

@@ -35,6 +35,7 @@ from routes.donations import donations_bp
 from routes.auth import auth_bp
 from routes.analytics import analytics_bp
 from routes.team import team_bp
+from routes.project_images import project_images_bp
 
 
 # Register blueprints
@@ -46,6 +47,7 @@ app.register_blueprint(analytics_bp)
 app.register_blueprint(contact_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(team_bp)
+app.register_blueprint(project_images_bp)
 
 
 
