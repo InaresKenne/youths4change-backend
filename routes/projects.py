@@ -127,7 +127,7 @@ def create_project():
             data.get('cloudinary_public_id')  
         ), fetch=False)
         
-        new_id = result[0]['id'] if result else None
+        new_id = result['id']
         
         return jsonify({
             "success": True,
