@@ -32,8 +32,8 @@ CORS(app, supports_credentials=True, origins=[
     'http://localhost:3000',
     'http://127.0.0.1:5173',
     # Production frontend URLs (Vercel)
-   "https://youths4change-frontend-pxtb.vercel.app"
-  
+    "https://youths4change-frontend-pxtb.vercel.app",
+    "https://youths4change-frontend.vercel.app"
 ])
 
 # Import blueprints
