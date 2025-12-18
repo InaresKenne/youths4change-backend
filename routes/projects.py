@@ -127,7 +127,8 @@ def create_project():
             data.get('cloudinary_public_id')  
         ), fetch=False)
         
-        new_id = result['id']
+        # execute_query returns a list with one dict when using RETURNING
+        new_id = result[0]['id'] if result else None
         
         return jsonify({
             "success": True,
