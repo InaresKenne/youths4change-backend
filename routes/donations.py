@@ -152,28 +152,30 @@ def create_donation():
 def get_donation_stats():
     """Get donation statistics for admin dashboard"""
     try:
-        # Total donations
+        # Total donations (only verified payments)
         total_query = """
             SELECT 
                 COUNT(*) as total_count,
                 COALESCE(SUM(amount), 0) as total_amount
             FROM donations
+            WHERE payment_status = 'verified'
         """
         totals = execute_query(total_query)[0]
         
-        # By country
+        # By country (only verified payments)
         country_query = """
             SELECT 
                 country,
                 COUNT(*) as count,
                 COALESCE(SUM(amount), 0) as amount
             FROM donations
+            WHERE payment_status = 'verified'
             GROUP BY country
             ORDER BY amount DESC
         """
         by_country = execute_query(country_query)
         
-        # By project
+        # By project (only verified payments)
         project_query = """
             SELECT 
                 d.project_id,
@@ -182,6 +184,7 @@ def get_donation_stats():
                 COALESCE(SUM(d.amount), 0) as amount
             FROM donations d
             LEFT JOIN projects p ON d.project_id = p.id
+            WHERE d.payment_status = 'verified'
             GROUP BY d.project_id, p.name
             ORDER BY amount DESC
         """
