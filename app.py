@@ -26,7 +26,17 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 
 
 # Enable CORS with credentials support (for sessions)
-CORS(app, supports_credentials=True, origins=['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5173'])
+CORS(app, supports_credentials=True, origins=[
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    # Production frontend URLs (Vercel)
+    'https://youths4change.vercel.app',
+    'https://youths4change-git-main.vercel.app',
+    'https://*.vercel.app',
+
+])
 
 # Import blueprints
 from routes.projects import projects_bp
@@ -90,4 +100,6 @@ def internal_error(error):
 
 # Run the app
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port, debug=False)
+
