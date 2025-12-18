@@ -1441,6 +1441,43 @@ ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON TABL
 
 
 --
+-- MANUAL PAYMENT SYSTEM SETUP
+-- Add payment verification columns to donations table
+--
+
+ALTER TABLE donations 
+ADD COLUMN IF NOT EXISTS payment_proof_url TEXT,
+ADD COLUMN IF NOT EXISTS verification_notes TEXT,
+ADD COLUMN IF NOT EXISTS verified_by INTEGER REFERENCES admins(id),
+ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP;
+
+-- Add comment for documentation
+COMMENT ON COLUMN donations.payment_proof_url IS 'Cloudinary URL for payment screenshot/proof';
+COMMENT ON COLUMN donations.verification_notes IS 'Admin notes when verifying/rejecting payment';
+COMMENT ON COLUMN donations.verified_by IS 'Admin ID who verified the payment';
+COMMENT ON COLUMN donations.verified_at IS 'Timestamp when payment was verified';
+
+--
+-- Insert bank account and mobile money payment settings
+--
+
+-- Insert bank account details
+INSERT INTO site_settings (setting_key, setting_value, setting_type, description)
+VALUES 
+('bank_account_name', 'Inares Kenne Tsangue', 'text', 'Bank account holder name'),
+('bank_name', 'Ecobank Ghana', 'text', 'Bank name'),
+('bank_account_number', '1441004720058', 'text', 'Bank account number'),
+('bank_swift_code', 'ECOCGHAC', 'text', 'Bank SWIFT code'),
+('bank_address', '2 Morocco Lane, Off Independence Ave', 'text', 'Bank branch address'),
+('momo_number_ghana', '+233 653417287', 'text', 'Ghana Mobile Money number'),
+('momo_name_ghana', 'Inares Kenne Tsangue', 'text', 'Ghana Mobile Money account name'),
+('momo_number_cameroon', '+237653417287', 'text', 'Cameroon Mobile Money number'),
+('momo_name_cameroon', 'Belise Virginie', 'text', 'Cameroon Mobile Money account name')
+ON CONFLICT (setting_key) DO UPDATE 
+SET setting_value = EXCLUDED.setting_value,
+    updated_at = CURRENT_TIMESTAMP;
+
+--
 -- PostgreSQL database dump complete
 --
 

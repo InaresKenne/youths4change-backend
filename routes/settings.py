@@ -100,6 +100,56 @@ def update_settings():
 
 
 # ============================================
+# GET PAYMENT ACCOUNT DETAILS
+# ============================================
+@settings_bp.route('/api/payment-accounts', methods=['GET'])
+def get_payment_accounts():
+    """Get bank and mobile money account details for donations"""
+    try:
+        query = """
+            SELECT setting_key, setting_value
+            FROM site_settings
+            WHERE setting_key LIKE %s OR setting_key LIKE %s
+            ORDER BY setting_key
+        """
+        settings = execute_query(query, ('bank_%', 'momo_%'))
+        
+        # Organize into structured format
+        payment_accounts = {
+            'bank_account': {},
+            'mobile_money': {
+                'ghana': {},
+                'cameroon': {}
+            }
+        }
+        
+        for setting in settings:
+            key = setting['setting_key']
+            value = setting['setting_value']
+            
+            if key.startswith('bank_'):
+                payment_accounts['bank_account'][key.replace('bank_', '')] = value
+            elif key == 'momo_number_ghana':
+                payment_accounts['mobile_money']['ghana']['number'] = value
+            elif key == 'momo_name_ghana':
+                payment_accounts['mobile_money']['ghana']['name'] = value
+            elif key == 'momo_number_cameroon':
+                payment_accounts['mobile_money']['cameroon']['number'] = value
+            elif key == 'momo_name_cameroon':
+                payment_accounts['mobile_money']['cameroon']['name'] = value
+        
+        return jsonify({
+            "success": True,
+            "data": payment_accounts
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============================================
 # GET PAGE CONTENT
 # ============================================
 @settings_bp.route('/api/content/<page_name>', methods=['GET'])

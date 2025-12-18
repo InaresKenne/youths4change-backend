@@ -53,33 +53,43 @@ def get_donations():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 # ============================================
-# CREATE DONATION (Mock)
+# CREATE DONATION (Manual Payment)
 # ============================================
 @donations_bp.route('/api/donations', methods=['POST'])
 def create_donation():
     """
-    Record a mock donation
+    Record a donation with manual payment verification
+    Supports Mobile Money and Bank Transfer
     """
     try:
         data = request.get_json()
         
         # Validate required fields
-        required = ['donor_name', 'email', 'amount', 'project_id', 'country']
+        required = ['donor_name', 'email', 'amount', 'project_id', 'country', 'payment_method']
         for field in required:
             if not data.get(field):
                 return jsonify({
                     "error": f"{field.replace('_', ' ').title()} is required"
                 }), 400
         
+        # Validate payment method
+        valid_methods = ['mobile_money', 'bank_transfer']
+        if data['payment_method'] not in valid_methods:
+            return jsonify({"error": "Invalid payment method"}), 400
+        
+        # Validate transaction reference is provided
+        if not data.get('transaction_id'):
+            return jsonify({"error": "Transaction reference is required"}), 400
+        
         # Validate email
         email_pattern = r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$'
         if not re.match(email_pattern, data['email']):
             return jsonify({"error": "Invalid email format"}), 400
         
-        # Validate amount (decimal, min $5)
+        # Validate amount (decimal, min 5 GHS)
         amount = float(data['amount'])
         if amount < 5:
-            return jsonify({"error": "Minimum donation is $5"}), 400
+            return jsonify({"error": "Minimum donation is 5 GHS"}), 400
         
         # Validate name
         name_pattern = r'^[a-zA-Z\s]{2,50}$'
@@ -94,10 +104,14 @@ def create_donation():
         if not project_check:
             return jsonify({"error": "Project not found"}), 404
         
-        # Insert donation
+        # Insert donation with pending status
         query = """
-            INSERT INTO donations (donor_name, email, amount, project_id, country, status)
-            VALUES (%s, %s, %s, %s, %s, 'completed')
+            INSERT INTO donations (
+                donor_name, email, amount, project_id, country, 
+                payment_method, transaction_id, payment_proof_url,
+                currency, payment_status, status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
         
@@ -106,16 +120,22 @@ def create_donation():
             data['email'],
             amount,
             data['project_id'],
-            data['country']
+            data['country'],
+            data['payment_method'],
+            data['transaction_id'],
+            data.get('payment_proof_url'),  # Optional payment screenshot
+            data.get('currency', 'GHS'),
+            'pending',  # Pending verification
+            'pending'   # Overall status
         ), fetch=False)
         
         new_id = result[0]['id'] if result else None
         
         return jsonify({
             "success": True,
-            "message": "Donation recorded successfully",
+            "message": "Donation submitted successfully. We'll verify your payment within 24 hours.",
             "id": new_id,
-            "note": "This is a mock donation - no real payment processed"
+            "payment_status": "pending"
         }), 201
     
     except ValueError:
@@ -195,9 +215,11 @@ def get_donation(donation_id):
         query = """
             SELECT 
                 d.*,
-                p.name as project_name
+                p.name as project_name,
+                a.username as verified_by_username
             FROM donations d
             LEFT JOIN projects p ON d.project_id = p.id
+            LEFT JOIN admins a ON d.verified_by = a.id
             WHERE d.id = %s
         """
         donations = execute_query(query, (donation_id,))
@@ -215,6 +237,114 @@ def get_donation(donation_id):
             "success": True,
             "data": donation
         })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# ============================================
+# VERIFY DONATION (Admin)
+# ============================================
+@donations_bp.route('/api/donations/<int:donation_id>/verify', methods=['PUT'])
+def verify_donation(donation_id):
+    """Admin endpoint to verify a pending donation"""
+    try:
+        data = request.get_json()
+        
+        # Get admin ID from session (you should implement proper auth)
+        admin_id = data.get('admin_id', 3)  # Default admin for now
+        
+        # Check if donation exists
+        donation = execute_query(
+            "SELECT id, payment_status FROM donations WHERE id = %s",
+            (donation_id,)
+        )
+        
+        if not donation:
+            return jsonify({"error": "Donation not found"}), 404
+        
+        if donation[0]['payment_status'] == 'verified':
+            return jsonify({"error": "Donation already verified"}), 400
+        
+        # Update donation status to verified
+        query = """
+            UPDATE donations
+            SET payment_status = 'verified',
+                status = 'completed',
+                verified_by = %s,
+                verified_at = CURRENT_TIMESTAMP,
+                verification_notes = %s
+            WHERE id = %s
+        """
+        
+        execute_query(query, (
+            admin_id,
+            data.get('notes', 'Payment verified'),
+            donation_id
+        ), fetch=False)
+        
+        return jsonify({
+            "success": True,
+            "message": "Donation verified successfully"
+        })
+    
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# ============================================
+# REJECT DONATION (Admin)
+# ============================================
+@donations_bp.route('/api/donations/<int:donation_id>/reject', methods=['PUT'])
+def reject_donation(donation_id):
+    """Admin endpoint to reject a pending donation"""
+    try:
+        data = request.get_json()
+        
+        # Get admin ID from session
+        admin_id = data.get('admin_id', 3)  # Default admin for now
+        
+        # Validate rejection reason
+        if not data.get('reason'):
+            return jsonify({"error": "Rejection reason is required"}), 400
+        
+        # Check if donation exists
+        donation = execute_query(
+            "SELECT id, payment_status FROM donations WHERE id = %s",
+            (donation_id,)
+        )
+        
+        if not donation:
+            return jsonify({"error": "Donation not found"}), 404
+        
+        if donation[0]['payment_status'] == 'verified':
+            return jsonify({"error": "Cannot reject verified donation"}), 400
+        
+        # Update donation status to rejected
+        query = """
+            UPDATE donations
+            SET payment_status = 'rejected',
+                status = 'rejected',
+                verified_by = %s,
+                verified_at = CURRENT_TIMESTAMP,
+                verification_notes = %s
+            WHERE id = %s
+        """
+        
+        execute_query(query, (
+            admin_id,
+            data['reason'],
+            donation_id
+        ), fetch=False)
+        
+        return jsonify({
+            "success": True,
+            "message": "Donation rejected successfully"
+        })
+    
     except Exception as e:
         return jsonify({
             "success": False,
