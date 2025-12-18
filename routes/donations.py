@@ -86,10 +86,10 @@ def create_donation():
         if not re.match(email_pattern, data['email']):
             return jsonify({"error": "Invalid email format"}), 400
         
-        # Validate amount (decimal, min 5 GHS)
+        # Validate amount (decimal, min 1 USD)
         amount = float(data['amount'])
-        if amount < 5:
-            return jsonify({"error": "Minimum donation is 5 GHS"}), 400
+        if amount < 1:
+            return jsonify({"error": "Minimum donation is $1 USD"}), 400
         
         # Validate name
         name_pattern = r'^[a-zA-Z\s]{2,50}$'
